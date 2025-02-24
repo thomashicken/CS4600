@@ -52,13 +52,20 @@ class CalorieCounter:
         self.cursor.execute("SELECT * FROM user_profile LIMIT 1")
         return self.cursor.fetchone()
 
-    def log_meal(self, meal_name, calories, fat, carbohydrates, protein):
+    def log_meal(self):
         """Logs a meal entry for the current date."""
         today = datetime.date.today().isoformat()
+        meal_name = input("Enter meal name: ").strip()
+        calories = int(input("Enter calories: ").strip())
+        fat = float(input("Enter fat (g): ").strip())
+        carbohydrates = float(input("Enter carbohydrates (g): ").strip())
+        protein = float(input("Enter protein (g): ").strip())
+        
         self.cursor.execute('''INSERT INTO meal_log (date, meal_name, calories, fat, carbohydrates, protein)
                               VALUES (?, ?, ?, ?, ?, ?)''',
                             (today, meal_name, calories, fat, carbohydrates, protein))
         self.conn.commit()
+        print("Meal logged successfully!")
 
     def get_calories_today(self):
         """Calculates the total calories consumed today."""
@@ -77,29 +84,28 @@ class CalorieCounter:
         
         # Basal Metabolic Rate (BMR) Calculation
         if gender.lower() == "male":
-            bmr = 10 * (weight / 2.20462) + 6.25 * (height * 30.48) - 5 * self._calculate_age(birthday) + 5
+            bmr = 10 * (weight / 2.20462) + 6.25 * height - 5 * self._calculate_age(birthday) + 5
         else:
-            bmr = 10 * (weight / 2.20462) + 6.25 * (height * 30.48) - 5 * self._calculate_age(birthday) - 161
+            bmr = 10 * (weight / 2.20462) + 6.25 * height - 5 * self._calculate_age(birthday) - 161
 
         # Activity level multiplier
         activity_multipliers = {
-            "sedentary": 1.2,
-            "lightly active": 1.375,
-            "moderately active": 1.55,
-            "very active": 1.725,
-            "extra active": 1.9
+            "not active": 1.2,
+            "somewhat active": 1.375,
+            "highly active": 1.55,
+            "extremely active": 1.725
         }
         bmr *= activity_multipliers.get(activity_level.lower(), 1.2)
 
         # Adjust for weight loss/gain
-        daily_deficit = (weekly_weight_loss * 7700) / 7  # 7700 kcal per kg
+        daily_deficit = min((weekly_weight_loss * 7700) / 7, bmr * 0.2)  # 7700 kcal per kg
         daily_calories = bmr - daily_deficit
 
         return round(daily_calories, 2)
 
     def _calculate_age(self, birthday):
         """Calculates age based on birthday."""
-        birth_date = datetime.datetime.strptime(birthday, "%Y-%m-%d").date()
+        birth_date = datetime.datetime.strptime(birthday, "%m-%d-%Y").date()
         today = datetime.date.today()
         return today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
 
@@ -113,24 +119,29 @@ class CalorieCounter:
             print("4. View Recommended Daily Calories")
             print("5. Update Weight")
             print("6. Exit")
-            choice = input("Enter choice: ")
+            choice = input("Enter choice: ").strip()
+            print(f"DEBUG: choice received -> {choice}")  # Debug print
 
             if choice == "1":
-                goal_weight = float(input("Enter goal weight (lbs): "))
-                weekly_weight_loss = float(input("Enter weekly weight loss goal (lbs): "))
-                activity_level = input("Enter activity level (sedentary, lightly active, moderately active, very active, extra active): ")
-                gender = input("Enter gender (male/female): ")
-                birthday = input("Enter birthday (YYYY-MM-DD): ")
-                weight = float(input("Enter current weight (lbs): "))
-                height = float(input("Enter height (ft): "))
+                goal_weight = float(input("Enter goal weight (lbs): ").strip())
+                weekly_weight_loss = float(input("Enter weekly weight loss goal (choose from: 0.5, 1, 1.5, 2 lbs): ").strip())
+                activity_level = input("Enter activity level (Not Active, Somewhat Active, Highly Active, Extremely Active): ").strip()
+                gender = input("Enter gender (male/female): ").strip()
+                birthday = input("Enter birthday (MM-DD-YYYY, e.g., 08-10-2002): ").strip()
+                weight = float(input("Enter current weight (lbs): ").strip())
+                height_ft, height_in = map(int, input("Enter height (feet and inches, separated by a space, e.g., '6 1'): ").strip().split())
+                height = (height_ft * 12 + height_in) * 2.54
                 self.set_user_profile(goal_weight, weekly_weight_loss, activity_level, gender, birthday, weight, height)
                 print("User profile set successfully!")
-
+            elif choice == "2":
+                self.log_meal()
+            elif choice == "3":
+                print(f"Total Calories consumed today: {self.get_calories_today()} Calories")
+            elif choice == "4":
+                print(f"Recommended daily Calorie intake: {self.calculate_daily_calories()} Calories")
             elif choice == "5":
-                new_weight = float(input("Enter new weight (lbs): "))
+                new_weight = float(input("Enter new weight (lbs): ").strip())
                 self.update_weight(new_weight)
-                print(f"New recommended daily calorie intake: {self.calculate_daily_calories()} Calories")
-
             elif choice == "6":
                 print("Exiting...")
                 break

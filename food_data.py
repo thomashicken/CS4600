@@ -8,12 +8,7 @@ important_nutrients = {
     "Energy": "Calories",
     "Protein": "Protein",
     "Total lipid (fat)": "Total Fat",
-    "Fatty acids, total saturated": "Saturated Fat",
-    "Carbohydrate, by difference": "Carbohydrates",
-    "Fiber, total dietary": "Fiber",
-    "Total Sugars": "Sugars",
-    "Sodium, Na": "Sodium",
-    "Cholesterol": "Cholesterol"
+    "Carbohydrate, by difference": "Carbohydrates"
 }
 
 def get_fdc_id(food_name, api_key):
@@ -33,7 +28,7 @@ def get_fdc_id(food_name, api_key):
     # Display search results
     print(f"\nSearch results for '{food_name}':")
     choices = []
-    for i, food in enumerate(parsed['foods'][:5]):  # Show top 5 results
+    for i, food in enumerate(parsed['foods'][:20]):  # Show top 20 results
         brand = food.get('brandOwner', 'Generic/Unknown')
         description = food['description']
         fdc_id = food['fdcId']
@@ -43,11 +38,11 @@ def get_fdc_id(food_name, api_key):
     # Let the user pick one
     while True:
         try:
-            choice = int(input("\nEnter the number of the food you want to log (1-5): ").strip())
+            choice = int(input("\nEnter the number of the food you want to log (1-20): ").strip())
             if 1 <= choice <= len(choices):
                 break
             else:
-                print("Invalid choice. Please enter a number between 1 and 5.")
+                print("Invalid choice. Please enter a number between 1 and 20.")
         except ValueError:
             print("Invalid input. Please enter a number.")
 

@@ -1,9 +1,10 @@
 import sqlite3
 import datetime
 import csv
+import matplotlib.pyplot as plt
 
 # Importing USDA API functions from main.py
-from main import get_fdc_id, get_nutrition_data
+from food_data import get_fdc_id, get_nutrition_data
 
 class CalorieCounter:
     def __init__(self, db_name="calorie_tracker.db"):
@@ -133,14 +134,21 @@ class CalorieCounter:
                 print("Could not retrieve nutrition data. Please try again.")
                 return
 
-            # Extract relevant nutrition values
-            meal_name = f"{chosen_description} ({chosen_brand})"
-            calories = int(float(nutrition.get("Calories", "0 kcal").split()[0]))
-            fat = float(nutrition.get("Total Fat", "0 g").split()[0])
-            carbohydrates = float(nutrition.get("Carbohydrates", "0 g").split()[0])
-            protein = float(nutrition.get("Protein", "0 g").split()[0])
+            # Ask for quantity
+            try:
+                quantity = float(input(f"Enter quantity (serving size: {serving_size} {serving_unit}): ").strip())
+            except ValueError:
+                print("Invalid quantity. Defaulting to 1.")
+                quantity = 1
 
-            print(f"\nLogging: {meal_name}")
+            # Extract relevant nutrition values and scale by quantity
+            meal_name = f"{chosen_description} ({chosen_brand})"
+            calories = round(float(nutrition.get("Calories", "0 kcal").split()[0]) * quantity, 2)
+            fat = round(float(nutrition.get("Total Fat", "0 g").split()[0]) * quantity, 2)
+            carbohydrates = round(float(nutrition.get("Carbohydrates", "0 g").split()[0]) * quantity, 2)
+            protein = round(float(nutrition.get("Protein", "0 g").split()[0]) * quantity, 2)
+
+            print(f"\nLogging: {meal_name} (x{quantity})")
             print(f"Calories: {calories} kcal, Fat: {fat} g, Carbs: {carbohydrates} g, Protein: {protein} g")
 
         else:
@@ -172,9 +180,9 @@ class CalorieCounter:
         if not profile:
             return None
 
-        _, goal_weight, weekly_weight_loss, activity_level, gender, birthday, weight, height = profile
-        
-        # Basal Metabolic Rate (BMR) Calculation
+        _, goal_weight, weekly_weight_change, activity_level, gender, birthday, weight, height = profile
+
+        # Basal Metabolic Rate (BMR) Calculation using Mifflin-St Jeor Equation
         if gender.lower() == "male":
             bmr = 10 * (weight / 2.20462) + 6.25 * height - 5 * self._calculate_age(birthday) + 5
         else:
@@ -189,10 +197,21 @@ class CalorieCounter:
         }
         bmr *= activity_multipliers.get(activity_level.lower(), 1.2)
 
-        # Adjust for weight loss/gain
-        daily_deficit = min((weekly_weight_loss * 7700) / 7, bmr * 0.2)  # 7700 kcal per kg
-        daily_calories = bmr - daily_deficit
+        # Adjust calories based on user's weekly weight change goal
+        if weekly_weight_change > 0:
+            # Weight loss
+            daily_adjustment = min((weekly_weight_change * 7700) / 7, bmr * 0.2)
+            daily_calories = bmr - daily_adjustment
+        elif weekly_weight_change < 0:
+            # Weight gain
+            daily_adjustment = min((abs(weekly_weight_change) * 7700) / 7, bmr * 0.2)
+            daily_calories = bmr + daily_adjustment
+        else:
+            # Maintain weight
+            daily_calories = bmr
 
+        # Clamp daily calories to safe limits
+        daily_calories = max(min(daily_calories, 4000), 1200)
         return round(daily_calories, 2)
 
     def _calculate_age(self, birthday):
@@ -200,13 +219,71 @@ class CalorieCounter:
         birth_date = datetime.datetime.strptime(birthday, "%m-%d-%Y").date()
         today = datetime.date.today()
         return today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+    
+    def show_nutrition_pie_chart(self):
+        """Saves a pie chart of macronutrient consumption for today."""
+        today = datetime.date.today().isoformat()
+        
+        # Get total daily consumption
+        self.cursor.execute("""
+            SELECT SUM(fat), SUM(carbohydrates), SUM(protein)
+            FROM meal_log WHERE date = ?
+        """, (today,))
+        result = self.cursor.fetchone()
+        
+        # If no meals logged today
+        if not result or all(value is None for value in result):
+            print("No meals logged today. Nothing to display.")
+            return
+
+        fat, carbs, protein = result
+        fat, carbs, protein = fat or 0, carbs or 0, protein or 0  # Handle None values
+
+        # Data for pie chart
+        labels = ['Fat', 'Carbohydrates', 'Protein']
+        sizes = [fat, carbs, protein]
+        colors = ['#ff9999','#66b3ff','#99ff99']
+        
+        # Plot
+        plt.figure(figsize=(6,6))
+        plt.pie(sizes, labels=labels, autopct='%1.1f%%', colors=colors, startangle=140)
+        plt.axis('equal')  # Equal aspect ratio ensures a circular pie chart
+        plt.title(f"Macronutrient Breakdown ({today})")
+        
+        # Save instead of showing
+        filename = f"nutrition_breakdown_{today}.png"
+        plt.savefig(filename)
+        print(f"Nutrition breakdown saved as {filename}")
+
+    def show_calorie_intake_pie_chart(self):
+        """Saves a pie chart comparing consumed calories to daily recommended intake."""
+        today = datetime.date.today().isoformat()
+        calories_consumed = self.get_calories_today()
+        recommended_calories = self.calculate_daily_calories() or 2000  # Default to 2000 if no profile set
+        
+        budget_calories = max(recommended_calories - calories_consumed, 0)
+        budget_calories = round(budget_calories, 1)  # Round to 1 decimal place
+        
+        labels = [f'Consumed: {calories_consumed} kcal', f'Budget: {budget_calories} kcal']
+        sizes = [calories_consumed, budget_calories]
+        colors = ['#ff9999', '#66b3ff']
+        
+        plt.figure(figsize=(6,6))
+        plt.pie(sizes, labels=labels, autopct='%1.1f%%', colors=colors, startangle=90)
+        plt.axis('equal')
+        plt.title(f"Calorie Intake vs. Budget ({today})")
+        
+        # Save the chart
+        filename = f"calorie_intake_{today}.png"
+        plt.savefig(filename)
+        print(f"Calorie intake chart saved as {filename}")
 
     def run_cli(self):
         """Runs a command-line interface for user interaction."""
         self.log_daily_summary()
         
         while True:
-            print("\nCalorie Tracker Menu")
+            print("\nCalorie Counter Menu")
             print("1. Set User Profile")
             print("2. Log a Meal")
             print("3. View Today's Calorie Intake")
@@ -214,20 +291,74 @@ class CalorieCounter:
             print("5. Update Weight")
             print("6. View Daily Log")
             print("7. Export Daily Log to CSV")
-            print("8. Exit")
+            print("8. View Nutrition Breakdown (Pie Chart)")
+            print("9. View Calorie Intake vs. Goal")
+            print("10. Exit")
 
             choice = input("Enter choice: ").strip()
             print(f"DEBUG: choice received -> {choice}")
 
             if choice == "1":
-                goal_weight = float(input("Enter goal weight (lbs): ").strip())
-                weekly_weight_loss = float(input("Enter weekly weight loss goal (choose from: 0.5, 1, 1.5, 2 lbs): ").strip())
-                activity_level = input("Enter activity level (Not Active, Somewhat Active, Highly Active, Extremely Active): ").strip()
+                print("What would you like to do with this calorie counter?")
+                print("Options: 'lose', 'maintain', or 'gain'")
+                goal_type = input("Enter your goal: ").strip().lower()
+
+                valid_activity_levels = {
+                    "not active": 1.2,
+                    "somewhat active": 1.375,
+                    "highly active": 1.55,
+                    "extremely active": 1.725
+                }
+
+                while True:
+                    activity_level = input("Enter activity level (Not Active, Somewhat Active, Highly Active, Extremely Active): ").strip().lower()
+                    if activity_level in valid_activity_levels:
+                        break
+                    else:
+                        print("Invalid activity level. Please choose from: Not Active, Somewhat Active, Highly Active, Extremely Active.")
+                
                 gender = input("Enter gender (male/female): ").strip()
-                birthday = input("Enter birthday (MM-DD-YYYY, e.g., 08-10-2002): ").strip()
+                birthday = input("Enter birthday (MM-DD-YYYY): ").strip()
                 weight = float(input("Enter current weight (lbs): ").strip())
                 height_ft, height_in = map(int, input("Enter height (feet and inches, separated by a space, e.g., '6 1'): ").strip().split())
                 height = (height_ft * 12 + height_in) * 2.54
+
+                if goal_type == "lose":
+                    goal_weight = float(input("Enter goal weight (lbs): ").strip())
+                    if goal_weight < 100 or goal_weight > 400:
+                        print("Warning: Goal weight seems outside of typical safe bounds (100–400 lbs).")
+                        confirm = input("Are you sure you want to proceed? (yes/no): ").strip().lower()
+                        if confirm != "yes":
+                            print("Profile setup cancelled.")
+                            return
+                    while True:
+                        weekly_weight_loss = float(input("How many pounds would you like to lose per week? (0.5 to 2 lbs recommended): ").strip())
+                        if 0.5 <= weekly_weight_loss <= 2:
+                            break
+                        print("Invalid value. Please enter a number between 0.5 and 2.")
+
+                elif goal_type == "gain":
+                    goal_weight = float(input("Enter goal weight (lbs): ").strip())
+                    if goal_weight < 100 or goal_weight > 400:
+                        print("Warning: Goal weight seems outside of typical safe bounds (100–400 lbs).")
+                        confirm = input("Are you sure you want to proceed? (yes/no): ").strip().lower()
+                        if confirm != "yes":
+                            print("Profile setup cancelled.")
+                            return
+                    while True:
+                        gain_per_week = float(input("How many pounds would you like to gain per week? (0.5 to 2 lbs recommended): ").strip())
+                        if 0.5 <= gain_per_week <= 2:
+                            weekly_weight_loss = -gain_per_week
+                            break
+                        print("Invalid value. Please enter a number between 0.5 and 2.")
+                elif goal_type == "maintain":
+                    goal_weight = weight  # Same as current
+                    weekly_weight_loss = 0
+                else:
+                    print("Invalid goal type. Defaulting to 'maintain'.")
+                    goal_weight = weight
+                    weekly_weight_loss = 0
+
                 self.set_user_profile(goal_weight, weekly_weight_loss, activity_level, gender, birthday, weight, height)
                 print("User profile set successfully!")
 
@@ -249,8 +380,14 @@ class CalorieCounter:
 
             elif choice == "7":
                 self.export_log_to_csv()
-
+            
             elif choice == "8":
+                self.show_nutrition_pie_chart()
+
+            elif choice == "9":
+                self.show_calorie_intake_pie_chart()
+
+            elif choice == "10":
                 print("Exiting...")
                 break
 

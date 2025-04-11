@@ -23,27 +23,40 @@ def get_fdc_id(food_name, api_key):
     parsed = response.json()
 
     if 'error' in parsed:
-        print(f"❌ API Error: {parsed['error'].get('message', 'Unknown error')}")
+        print(f"API Error: {parsed['error'].get('message', 'Unknown error')}")
         return None, None, None
 
     if 'foods' not in parsed or not parsed['foods']:
-        print(f"⚠️ No results found for '{food_name}'. Try a more specific name (e.g., 'red apple').")
+        print(f"No results found for '{food_name}'. Try a more specific name (e.g., 'red apple').")
         return None, None, None
 
-    # Display the top search results
-    print(f"\n🔍 Search results for '{food_name}':")
+    # Display search results
+    print(f"\nSearch results for '{food_name}':")
+    choices = []
     for i, food in enumerate(parsed['foods'][:5]):  # Show top 5 results
         brand = food.get('brandOwner', 'Generic/Unknown')
-        print(f"{i+1}. {food['description']} (Brand: {brand}, FDC ID: {food['fdcId']})")
+        description = food['description']
+        fdc_id = food['fdcId']
+        print(f"{i+1}. {description} (Brand: {brand}, FDC ID: {fdc_id})")
+        choices.append(food)
 
-    # Automatically select the first result
-    chosen_food = parsed['foods'][0]
+    # Let the user pick one
+    while True:
+        try:
+            choice = int(input("\nEnter the number of the food you want to log (1-5): ").strip())
+            if 1 <= choice <= len(choices):
+                break
+            else:
+                print("Invalid choice. Please enter a number between 1 and 5.")
+        except ValueError:
+            print("Invalid input. Please enter a number.")
+
+    chosen_food = choices[choice - 1]
     fdc_id = chosen_food['fdcId']
     chosen_description = chosen_food['description']
     chosen_brand = chosen_food.get('brandOwner', 'Generic/Unknown')
 
-    # Print the selected food explicitly
-    print(f"\n✅ Chosen food: {chosen_description} (Brand: {chosen_brand}, FDC ID: {fdc_id})")
+    print(f"\nChosen food: {chosen_description} (Brand: {chosen_brand}, FDC ID: {fdc_id})")
 
     return fdc_id, chosen_description, chosen_brand
 
@@ -54,11 +67,15 @@ def get_nutrition_data(fdc_id, api_key):
 
     if 'foodNutrients' not in parsed:
         print(f"No nutrition data found for FDC ID {fdc_id}.")
-        return None
+        return None, None, None
 
     # Extract serving size if available
-    serving_size = parsed.get("servingSize", None)
+    serving_size = parsed.get("servingSize")
     serving_unit = parsed.get("servingSizeUnit", "g")  # Default to grams if not specified
+
+    if serving_size is None:
+        serving_size = "100"  # Assume 100g as a default reference value
+        serving_unit = "g"
 
     nutrition_data = {}
     for nutrient in parsed['foodNutrients']:

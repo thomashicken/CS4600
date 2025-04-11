@@ -534,6 +534,50 @@ class CalorieCounter:
                                 (today, self.get_calories_today(), self.get_user_profile()[6], calories_burned))
         self.conn.commit()
 
+    def view_personalized_plan(self):
+        profile = self.get_user_profile()
+        if not profile:
+            print("No user profile found. Please set one first.")
+            return
+
+        _, goal_weight, weekly_weight_change, activity_level, gender, birthday, weight, height = profile
+        age = self._calculate_age(birthday)
+        calorie_target = self.calculate_daily_calories()
+
+        # Timeline estimate
+        if weekly_weight_change != 0:
+            weeks = abs((weight - goal_weight) / weekly_weight_change)
+            eta = f"{round(weeks, 1)} weeks"
+        else:
+            eta = "No change planned"
+
+        # Macro recommendations (standard: 30/40/30 split)
+        protein_cal = 0.3 * calorie_target
+        carbs_cal = 0.4 * calorie_target
+        fat_cal = 0.3 * calorie_target
+
+        protein_g = round(protein_cal / 4)
+        carbs_g = round(carbs_cal / 4)
+        fat_g = round(fat_cal / 9)
+
+        print(f"\nPersonalized Health Plan")
+        print("------------------------")
+        print(f"• Current Weight: {weight} lbs")
+        print(f"• Goal Weight: {goal_weight} lbs")
+        total_inches = round(height / 2.54)
+        feet = total_inches // 12
+        inches = total_inches % 12
+        print(f"• Height: {feet} ft {inches} in")
+        print(f"• Age: {age}")
+        print(f"• Activity Level: {activity_level}")
+        print(f"• Weekly Goal: {weekly_weight_change:+.1f} lbs/week")
+        print(f"\nDaily Calorie Target: {round(calorie_target)} cal")
+        print(f"Estimated Time to Reach Goal: {eta}")
+        print(f"\nSuggested Macronutrient Ranges:")
+        print(f"• Protein: {protein_g}g")
+        print(f"• Carbohydrates: {carbs_g}g")
+        print(f"• Fat: {fat_g}g")
+
     def prompt_profile_creation(self):
         goal_type = get_valid_input("Enter your goal (lose/maintain/gain): ", lambda x: x in ["lose", "maintain", "gain"], "Please enter 'lose', 'maintain', or 'gain'.")
 
@@ -574,21 +618,22 @@ class CalorieCounter:
         while True:
             print("\nCalorie Counter Menu")
             print("1. Set New Profile (overwrites current)")
-            print("2. View Current Profile")
-            print("3. Edit Profile")
-            print("4. Log a Meal")
-            print("5. View Today's Calorie Intake")
-            print("6. View Recommended Daily Calories")
-            print("7. Update Weight")
-            print("8. View Daily Log")
-            print("9. Export Daily Log to CSV")
-            print("10. View Nutrition Breakdown (Pie Chart)")
-            print("11. View Calorie Intake vs. Goal")
-            print("12. View Progress Graph")
-            print("13. Log an Exercise")
-            print("14. Exit")
+            print("2. View Personalized Health Plan")
+            print("3. View Current Profile")
+            print("4. Edit Profile")
+            print("5. Log a Meal")
+            print("6. View Today's Calorie Intake")
+            print("7. View Recommended Daily Calories")
+            print("8. Update Weight")
+            print("9. View Daily Log")
+            print("10. Export Daily Log to CSV")
+            print("11. View Nutrition Breakdown (Pie Chart)")
+            print("12. View Calorie Intake vs. Goal (Pie Chart)")
+            print("13. View Progress Graph")
+            print("14. Log an Exercise")
+            print("15. Exit")
 
-            choice = get_valid_input("Enter choice: ", lambda x: x.isdigit() and 1 <= int(x) <= 14, "Please enter a number between 1 and 14.")
+            choice = get_valid_input("Enter choice: ", lambda x: x.isdigit() and 1 <= int(x) <= 15, "Please enter a number between 1 and 15.")
 
             if choice == "1":
                 print("WARNING: This will overwrite your existing profile.")
@@ -599,43 +644,46 @@ class CalorieCounter:
                 self.prompt_profile_creation()
 
             elif choice == "2":
+                self.view_personalized_plan()
+            
+            elif choice == "3":
                 self.view_user_profile()
 
-            elif choice == "3":
+            elif choice == "4":
                 self.edit_user_profile()
 
-            elif choice == "4":
+            elif choice == "5":
                 self.log_meal()
 
-            elif choice == "5":
+            elif choice == "6":
                 print(f"Total Calories consumed today: {self.get_calories_today()} Calories")
 
-            elif choice == "6":
+            elif choice == "7":
                 print(f"Recommended daily Calorie intake: {self.calculate_daily_calories()} Calories")
 
-            elif choice == "7":
+            elif choice == "8":
                 new_weight = get_valid_float("Enter new weight (lbs): ")
                 self.update_weight(new_weight)
 
-            elif choice == "8":
+            elif choice == "9":
                 self.view_daily_log()
 
-            elif choice == "9":
+            elif choice == "10":
                 self.export_log_to_csv()
 
-            elif choice == "10":
+            elif choice == "11":
                 self.show_nutrition_pie_chart()
 
-            elif choice == "11":
+            elif choice == "12":
                 self.show_calorie_intake_pie_chart()
 
-            elif choice == "12":
+            elif choice == "13":
                 self.show_progress_graph()
             
-            elif choice == "13":
+            elif choice == "14":
                 self.log_exercise()
 
-            elif choice == "14":
+            elif choice == "15":
                 print("Exiting...")
                 break
 

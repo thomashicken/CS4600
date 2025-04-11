@@ -127,19 +127,23 @@ echo "Simulating user interactions..."
 expect <<EOF
 spawn python3 calorie_counter.py
 
+# View personalized health plan
+expect "Enter choice:"
+send "2\r"
+
 # View today's calorie intake
 expect "Enter choice:"
-send "5\r"
+send "6\r"
 
 # Update weight
 expect "Enter choice:"
-send "7\r"
+send "8\r"
 expect "Enter new weight (lbs):"
-send "197\r"
+send "182\r"
 
 # View daily log
 expect "Enter choice:"
-send "8\r"
+send "9\r"
 expect "Would you like to see all past days?"
 send "no\r"
 
@@ -161,7 +165,7 @@ send "55\r"
 
 # Log a meal
 expect "Enter choice:"
-send "4\r"
+send "5\r"
 expect "Would you like to search for a meal using the USDA API? (yes/no):"
 send "no\r"
 expect "Enter meal name:"
@@ -177,7 +181,7 @@ send "35\r"
 
 # Log an exercise
 expect "Enter choice:"
-send "13\r"
+send "14\r"
 expect "Enter exercise name:"
 send "running\r"
 expect "Enter duration in minutes:"
@@ -185,7 +189,7 @@ send "20\r"
 
 # View log again and delete a meal
 expect "Enter choice:"
-send "8\r"
+send "9\r"
 expect "Would you like to see all past days?"
 send "no\r"
 expect "Would you like to edit or delete a meal?"
@@ -195,11 +199,11 @@ send "3\r"
 
 # View progress graph
 expect "Enter choice:"
-send "12\r"
-
-# Log an exercise
-expect "Enter choice:"
 send "13\r"
+
+# Log another exercise
+expect "Enter choice:"
+send "14\r"
 expect "Enter exercise name:"
 send "running\r"
 expect "Enter duration in minutes:"
@@ -207,7 +211,7 @@ send "20\r"
 
 # Exit
 expect "Enter choice:"
-send "14\r"
+send "15\r"
 
 expect eof
 EOF

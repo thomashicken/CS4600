@@ -179,8 +179,52 @@ class CalorieCounter:
             for log in logs:
                 print(f"{log[0]}   | {log[1]}              | {log[2]}              | {log[3]}")
 
-            # Show meals for today
-            if view_all != "yes":
+            if view_all == "yes":
+                selected_date = input("\nEnter a date (YYYY-MM-DD) to view meals, or press Enter to return to menu: ").strip()
+                if selected_date:
+                    self.cursor.execute("SELECT id, meal_name, calories FROM meal_log WHERE date = ?", (selected_date,))
+                    meals = self.cursor.fetchall()
+                    print(f"\nMeals for {selected_date}:")
+                    for meal in meals:
+                        print(f"[ID: {meal[0]}] {meal[1]} - {meal[2]} cal")
+
+                    action = input("Would you like to edit or delete a meal? (edit/delete/none): ").strip().lower()
+                    if action == "delete":
+                        meal_id = input("Enter Meal ID to delete: ").strip()
+                        self.cursor.execute("DELETE FROM meal_log WHERE id = ?", (meal_id,))
+                        self.conn.commit()
+                        print("Meal deleted successfully.")
+                    elif action == "edit":
+                        meal_id = input("Enter Meal ID to edit: ").strip()
+                        new_name = input("New meal name: ").strip()
+
+                        def get_optional_float(prompt, default):
+                            value = input(prompt).strip()
+                            return float(value) if value else default
+
+                        new_calories = get_optional_float("New calories (leave blank to keep current): ", None)
+                        new_fat = get_optional_float("New fat (g) (leave blank to keep current): ", None)
+                        new_carbs = get_optional_float("New carbohydrates (g) (leave blank to keep current): ", None)
+                        new_protein = get_optional_float("New protein (g) (leave blank to keep current): ", None)
+
+                        self.cursor.execute("SELECT calories, fat, carbohydrates, protein FROM meal_log WHERE id = ?", (meal_id,))
+                        existing = self.cursor.fetchone()
+                        if not existing:
+                            print("Meal ID not found.")
+                            return
+                        calories, fat, carbs, protein = existing
+
+                        new_calories = new_calories if new_calories is not None else calories
+                        new_fat = new_fat if new_fat is not None else fat
+                        new_carbs = new_carbs if new_carbs is not None else carbs
+                        new_protein = new_protein if new_protein is not None else protein
+
+                        self.cursor.execute(
+                            "UPDATE meal_log SET meal_name = ?, calories = ?, fat = ?, carbohydrates = ?, protein = ? WHERE id = ?",
+                            (new_name, new_calories, new_fat, new_carbs, new_protein, meal_id))
+                        self.conn.commit()
+                        print("Meal updated successfully.")
+            else:
                 print("\nMeals logged today:")
                 self.cursor.execute("SELECT id, meal_name, calories FROM meal_log WHERE date = ?", (today,))
                 meals = self.cursor.fetchall()
@@ -206,7 +250,6 @@ class CalorieCounter:
                     new_carbs = get_optional_float("New carbohydrates (g) (leave blank to keep current): ", None)
                     new_protein = get_optional_float("New protein (g) (leave blank to keep current): ", None)
 
-                    # Fetch existing values to preserve unchanged fields
                     self.cursor.execute("SELECT calories, fat, carbohydrates, protein FROM meal_log WHERE id = ?", (meal_id,))
                     existing = self.cursor.fetchone()
                     if not existing:
@@ -499,7 +542,7 @@ class CalorieCounter:
 
     def log_exercise(self):
         today = datetime.date.today().isoformat()
-        print("Available exercises:")
+        print("\nAvailable exercises:")
         for ex in EXERCISE_CALORIES_PER_MIN:
             print(f"- {ex}")
         exercise_name = input("Enter exercise name: ").strip().lower()

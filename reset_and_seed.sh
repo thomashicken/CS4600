@@ -1,11 +1,11 @@
 #!/bin/bash
 
-echo "Resetting and simulating user interactions..."
+echo "Resetting and seeding database with realistic data (7 months)..."
 
-# Remove old database, CSV files, and PNG images
+# Remove old files
 rm -f calorie_tracker.db daily_log_export.csv *.png
 
-# Run Python script to seed the database
+# Run embedded Python script to create realistic data
 python3 - <<EOF
 import sqlite3
 import datetime
@@ -14,8 +14,25 @@ import random
 conn = sqlite3.connect("calorie_tracker.db")
 cursor = conn.cursor()
 
+# Config
+start_weight = 250.0
+goal_weight = 180.0
+height_cm = 185.42  # ~6'1"
+gender = "male"
+activity_level = "somewhat active"
+weekly_weight_loss = 1.5
+birthday = "08-10-2002"
+days = 365
+start_date = datetime.date.today() - datetime.timedelta(days=days - 1)
+
+# Reset tables
+cursor.execute("DROP TABLE IF EXISTS user_profile")
+cursor.execute("DROP TABLE IF EXISTS meal_log")
+cursor.execute("DROP TABLE IF EXISTS exercise_log")
+cursor.execute("DROP TABLE IF EXISTS daily_log")
+
 cursor.execute('''
-CREATE TABLE IF NOT EXISTS user_profile (
+CREATE TABLE user_profile (
     id INTEGER PRIMARY KEY,
     goal_weight REAL,
     weekly_weight_loss REAL,
@@ -26,14 +43,13 @@ CREATE TABLE IF NOT EXISTS user_profile (
     height REAL
 )
 ''')
-cursor.execute("DELETE FROM user_profile")
 cursor.execute('''
 INSERT INTO user_profile (goal_weight, weekly_weight_loss, activity_level, gender, birthday, weight, height)
-VALUES (180, 1.5, 'Somewhat Active', 'male', '08-10-2002', 200, 177.8)
-''')
+VALUES (?, ?, ?, ?, ?, ?, ?)
+''', (goal_weight, weekly_weight_loss, activity_level, gender, birthday, start_weight, height_cm))
 
 cursor.execute('''
-CREATE TABLE IF NOT EXISTS meal_log (
+CREATE TABLE meal_log (
     id INTEGER PRIMARY KEY,
     date TEXT,
     meal_name TEXT,
@@ -44,7 +60,7 @@ CREATE TABLE IF NOT EXISTS meal_log (
 )
 ''')
 cursor.execute('''
-CREATE TABLE IF NOT EXISTS exercise_log (
+CREATE TABLE exercise_log (
     id INTEGER PRIMARY KEY,
     date TEXT,
     exercise_name TEXT,
@@ -53,7 +69,7 @@ CREATE TABLE IF NOT EXISTS exercise_log (
 )
 ''')
 cursor.execute('''
-CREATE TABLE IF NOT EXISTS daily_log (
+CREATE TABLE daily_log (
     date TEXT PRIMARY KEY,
     calories_consumed INTEGER,
     weight REAL,
@@ -61,44 +77,45 @@ CREATE TABLE IF NOT EXISTS daily_log (
 )
 ''')
 
-# Sample meals and exercises
 meals = [
     ("Oatmeal", 300, 5, 40, 10),
     ("Grilled Chicken", 450, 10, 30, 40),
     ("Salmon", 600, 15, 20, 50),
     ("Rice & Beans", 500, 10, 80, 25),
     ("Protein Shake", 250, 5, 20, 30),
-    ("Veggie Wrap", 350, 7, 45, 15)
+    ("Veggie Wrap", 350, 7, 45, 15),
+    ("Burger", 700, 40, 50, 35),
+    ("Pasta", 650, 15, 70, 20),
+    ("Tuna Sandwich", 400, 10, 30, 35)
 ]
+
 exercises = [
     ("running", 30, 300),
     ("cycling", 45, 360),
     ("yoga", 60, 180),
     ("weightlifting", 40, 250),
-    ("hiking", 50, 320)
+    ("hiking", 50, 320),
+    ("basketball", 45, 400),
+    ("walking", 60, 240)
 ]
 
-# Generate 90 days of logs
-start_date = datetime.date.today() - datetime.timedelta(days=89)
-weight = 200.0
-
-for i in range(90):
+for i in range(days):
     date = start_date + datetime.timedelta(days=i)
     str_date = str(date)
 
-    # Weight decreases gradually with some variation
-    weight_loss = i * (20 / 89)  # 20 lbs over 89 days
-    daily_fluctuation = random.uniform(-0.2, 0.2)
-    current_weight = round(weight - weight_loss + daily_fluctuation, 1)
+    expected_loss = (i / days) * (start_weight - goal_weight)
+    fluctuation = random.uniform(-0.4, 0.4)
+    current_weight = round(start_weight - expected_loss + fluctuation, 1)
 
-    # Log 1-2 meals per day
-    meals_today = random.sample(meals, k=random.choice([1, 2]))
+    # Meals
+    k = random.choice([2, 3])
+    meals_today = random.sample(meals, k=k)
     total_calories = 0
     for meal in meals_today:
         cursor.execute('''
             INSERT INTO meal_log (date, meal_name, calories, fat, carbohydrates, protein)
             VALUES (?, ?, ?, ?, ?, ?)
-        ''', (str_date, meal[0], meal[1], meal[2], meal[3], meal[4]))
+        ''', (str_date, *meal))
         total_calories += meal[1]
 
     # Exercise every 2–3 days
@@ -108,9 +125,10 @@ for i in range(90):
         cursor.execute('''
             INSERT INTO exercise_log (date, exercise_name, duration_minutes, calories_burned)
             VALUES (?, ?, ?, ?)
-        ''', (str_date, exercise[0], exercise[1], exercise[2]))
+        ''', (str_date, *exercise))
         calories_burned = exercise[2]
 
+    # Daily log
     cursor.execute('''
         INSERT INTO daily_log (date, calories_consumed, weight, calories_burned)
         VALUES (?, ?, ?, ?)
@@ -118,7 +136,7 @@ for i in range(90):
 
 conn.commit()
 conn.close()
-print("Database setup complete. 3 months of historical user data inserted.")
+print("Database seeded with 210 days of realistic weight loss progress.")
 EOF
 
 # Simulate CLI interactions including exercise logging
@@ -139,7 +157,7 @@ send "6\r"
 expect "Enter choice:"
 send "8\r"
 expect "Enter new weight (lbs):"
-send "182\r"
+send "180\r"
 
 # View daily log
 expect "Enter choice:"

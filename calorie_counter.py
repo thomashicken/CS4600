@@ -2,6 +2,7 @@ import sqlite3
 import datetime
 import csv
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 
 # Importing USDA API functions from main.py
 from food_data import get_fdc_id, get_nutrition_data
@@ -71,7 +72,6 @@ class CalorieCounter:
             weight REAL,
             height REAL
         )''')
-        
         self.cursor.execute('''CREATE TABLE IF NOT EXISTS meal_log (
             id INTEGER PRIMARY KEY,
             date TEXT,
@@ -167,14 +167,14 @@ class CalorieCounter:
         view_all = input("Would you like to see all past days? (yes/no): ").strip().lower()
 
         if view_all == "yes":
-            self.cursor.execute("SELECT date, calories_consumed, calories_burned, weight FROM daily_log ORDER BY date")
+            self.cursor.execute("SELECT date, calories_consumed, weight, calories_burned FROM daily_log ORDER BY date")
         else:
-            self.cursor.execute("SELECT date, calories_consumed, calories_burned, weight FROM daily_log WHERE date = ?", (today,))
+            self.cursor.execute("SELECT date, calories_consumed, weight, calories_burned FROM daily_log WHERE date = ?", (today,))
 
         logs = self.cursor.fetchall()
 
         if logs:
-            print("\nDate         | Calories Consumed | Calories Burned | Weight (lbs)")
+            print("\nDate         | Calories Consumed | Weight | Calories Burned (lbs)")
             print("---------------------------------------------------------------")
             for log in logs:
                 print(f"{log[0]}   | {log[1]}              | {log[2]}              | {log[3]}")
@@ -328,7 +328,7 @@ class CalorieCounter:
                 return
 
             # Get nutrition data
-            nutrition, serving_size, serving_unit = get_nutrition_data(fdc_id, api_key)
+            nutrition, _, _ = get_nutrition_data(fdc_id, api_key)
 
             if not nutrition:
                 print("Could not retrieve nutrition data. Please try again.")
@@ -336,7 +336,7 @@ class CalorieCounter:
 
             # Ask for quantity
             try:
-                quantity = float(input(f"Enter quantity (serving size: {serving_size} {serving_unit}): ").strip())
+                quantity = float(input("Enter quantity (e.g., 1 for one item, 2 for two): ").strip())
             except ValueError:
                 print("Invalid quantity. Defaulting to 1.")
                 quantity = 1
@@ -366,6 +366,8 @@ class CalorieCounter:
         self.conn.commit()
 
         print("Meal logged successfully!")
+
+        self.log_daily_summary()
 
     def get_calories_today(self):
         """Calculates the total calories consumed today."""
@@ -502,8 +504,8 @@ class CalorieCounter:
         print(f"Calorie intake chart saved as {filename}")
     
     def show_progress_graph(self):
-        """Display a line chart of weight and calorie trends over time."""
-        self.cursor.execute("SELECT date, weight, calories_consumed, calories_burned FROM daily_log ORDER BY date")
+        """Display a line chart of weight over time."""
+        self.cursor.execute("SELECT date, weight FROM daily_log ORDER BY date")
         logs = self.cursor.fetchall()
 
         if not logs:
@@ -512,32 +514,35 @@ class CalorieCounter:
 
         dates = [datetime.datetime.strptime(row[0], "%Y-%m-%d") for row in logs]
         weights = [row[1] for row in logs]
-        cal_in = [row[2] for row in logs]
-        cal_out = [row[3] for row in logs]
 
-        plt.figure(figsize=(10, 6))
+        plt.figure(figsize=(12, 6))
 
-        # Weight trend
-        plt.plot(dates, weights, label="Weight (lbs)", linewidth=2, marker="o")
+        # Weight trend – bold line
+        plt.plot(dates, weights, label="Weight (lbs)", linewidth=1.3, color="#1f77b4", marker=".", markersize=2, zorder=3)
 
-        # Calories
-        plt.plot(dates, cal_in, label="Calories Consumed", linestyle="--", marker="x")
-        plt.plot(dates, cal_out, label="Calories Burned", linestyle="--", marker="x")
-
-        # Optional: goal weight line
+        # Goal Weight line
         profile = self.get_user_profile()
         if profile:
             goal_weight = profile[1]
-            plt.axhline(goal_weight, color='gray', linestyle=':', label=f"Goal Weight ({goal_weight} lbs)")
+            plt.axhline(goal_weight, color='gray', linestyle=':', linewidth=1.5,
+                        label=f"Goal Weight ({goal_weight} lbs)", zorder=0)
 
-        plt.xlabel("Date")
-        plt.ylabel("Value")
-        plt.title("Progress Over Time")
-        plt.legend()
+        # Labels and formatting
+        plt.xlabel("Date", fontsize=12)
+        plt.ylabel("Weight (lbs)", fontsize=12)
+        plt.title("Weight Progress Over Time", fontsize=14, weight='bold')
+        plt.legend(fontsize=10)
+        plt.xticks(rotation=45)
+        plt.grid(True, linestyle='--', alpha=0.4)
+
+        # Date formatting
+        ax = plt.gca()
+        ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %d'))
+
         plt.tight_layout()
-
         filename = "progress_graph.png"
-        plt.savefig(filename)
+        plt.savefig(filename, dpi=300)
         print(f"Progress graph saved as {filename}")
 
     def log_exercise(self):
@@ -614,7 +619,7 @@ class CalorieCounter:
         print(f"• Age: {age}")
         print(f"• Activity Level: {activity_level}")
         print(f"• Weekly Goal: {weekly_weight_change:+.1f} lbs/week")
-        print(f"\nDaily Calorie Target: {round(calorie_target)} cal")
+        print(f"\nDaily Calorie Budget: {round(calorie_target)} cal")
         print(f"Estimated Time to Reach Goal: {eta}")
         print(f"\nSuggested Macronutrient Ranges:")
         print(f"• Protein: {protein_g}g")

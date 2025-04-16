@@ -143,7 +143,7 @@ EOF
 echo "Simulating user interactions..."
 
 expect <<EOF
-spawn python3 calorie_counter.py
+spawn python3 main.py
 
 # View personalized health plan
 expect "Enter choice:"

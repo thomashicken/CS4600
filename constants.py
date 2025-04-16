@@ -1,0 +1,22 @@
+EXERCISE_CALORIES_PER_MIN = {
+    "running": 10,
+    "walking": 3.5,
+    "cycling": 8,
+    "swimming": 9,
+    "yoga": 3,
+    "jump rope": 12,
+    "elliptical": 8,
+    "weightlifting": 6,
+    "hiking": 7,
+    "dancing": 6,
+    "rowing": 7,
+    "aerobics": 7,
+    "pilates": 4,
+    "climbing stairs": 8,
+    "boxing": 9,
+    "basketball": 8,
+    "soccer": 9,
+    "tennis": 7,
+    "volleyball": 4,
+    "skateboarding": 5
+}

@@ -1,118 +1,50 @@
-import sqlite3
 import datetime
 import csv
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+
 from food_data import get_fdc_id, get_nutrition_data
+from constants import EXERCISE_CALORIES_PER_MIN
+from input_helpers import (
+    get_valid_input,
+    get_valid_float,
+    get_valid_int,
+    get_optional_float,
+    is_valid_date
+)
 
-# --- Constants ---
-
-EXERCISE_CALORIES_PER_MIN = {
-    "running": 10, "walking": 3.5, "cycling": 8, "swimming": 9, "yoga": 3, "jump rope": 12,
-    "elliptical": 8, "weightlifting": 6, "hiking": 7, "dancing": 6, "rowing": 7, "aerobics": 7,
-    "pilates": 4, "climbing stairs": 8, "boxing": 9, "basketball": 8, "soccer": 9,
-    "tennis": 7, "volleyball": 4, "skateboarding": 5
-}
-
-# --- Input Helpers ---
-
-def get_valid_input(prompt, valid_fn, error_msg):
-    while True:
-        val = input(prompt).strip()
-        if valid_fn(val): return val
-        print(error_msg)
-
-def get_valid_float(prompt):
-    while True:
-        try: return float(input(prompt).strip())
-        except ValueError: print("Invalid number. Please enter a valid float.")
-
-def get_valid_int(prompt):
-    while True:
-        try: return int(input(prompt).strip())
-        except ValueError: print("Invalid number. Please enter a valid integer.")
-
-def get_optional_float(prompt, default):
-    val = input(prompt).strip()
-    try: return float(val) if val else default
-    except: return default
+from db import initialize_database
 
 class CalorieCounter:
     def __init__(self, db_name="calorie_tracker.db"):
-        self.db_name = db_name
-        self.conn = sqlite3.connect(self.db_name)
-        self.cursor = self.conn.cursor()
-        self._setup_db()
+        self.conn, self.cursor = initialize_database(db_name)
 
-    def _setup_db(self):
-        """Creates necessary tables if they don't exist."""
-        self.cursor.execute('''CREATE TABLE IF NOT EXISTS user_profile (
-            id INTEGER PRIMARY KEY,
-            goal_weight REAL,
-            weekly_weight_loss REAL,
-            activity_level TEXT,
-            gender TEXT,
-            birthday TEXT,
-            weight REAL,
-            height REAL
-        )''')
-        self.cursor.execute('''CREATE TABLE IF NOT EXISTS meal_log (
-            id INTEGER PRIMARY KEY,
-            date TEXT,
-            meal_name TEXT,
-            calories INTEGER,
-            fat REAL,
-            carbohydrates REAL,
-            protein REAL
-        )''')
-        self.cursor.execute('''CREATE TABLE IF NOT EXISTS daily_log (
-            date TEXT PRIMARY KEY,
-            calories_consumed INTEGER,
-            weight REAL
-        )''')
-        self.cursor.execute('''CREATE TABLE IF NOT EXISTS exercise_log (
-            id INTEGER PRIMARY KEY,
-            date TEXT,
-            exercise_name TEXT,
-            duration_minutes INTEGER,
-            calories_burned INTEGER
-        )''')
-        # Add calories_burned to daily_log if not already
-        try:
-            self.cursor.execute("ALTER TABLE daily_log ADD COLUMN calories_burned INTEGER DEFAULT 0")
-        except sqlite3.OperationalError:
-            pass  # Already exists
-        self.conn.commit()
-
-    # --- Core Profile Methods ---
+    # --- Profile Methods ---
 
     def get_user_profile(self):
-        """Fetches the user profile."""
         self.cursor.execute("SELECT * FROM user_profile LIMIT 1")
         return self.cursor.fetchone()
-    
+
     def set_user_profile(self, goal_weight, weekly_weight_loss, activity_level, gender, birthday, weight, height):
-        """Stores user profile in the database."""
-        self.cursor.execute("DELETE FROM user_profile")  # Ensure only one user profile exists
-        self.cursor.execute('''INSERT INTO user_profile 
-                              (goal_weight, weekly_weight_loss, activity_level, gender, birthday, weight, height)
-                              VALUES (?, ?, ?, ?, ?, ?, ?)''',
-                            (goal_weight, weekly_weight_loss, activity_level, gender, birthday, weight, height))
+        self.cursor.execute("DELETE FROM user_profile")
+        self.cursor.execute(
+            """INSERT INTO user_profile
+            (goal_weight, weekly_weight_loss, activity_level, gender, birthday, weight, height)
+            VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (goal_weight, weekly_weight_loss, activity_level, gender, birthday, weight, height)
+        )
         self.conn.commit()
 
     def update_weight(self, new_weight):
-        """Updates the user's weight and logs the daily summary."""
         self.cursor.execute("UPDATE user_profile SET weight = ? WHERE id = 1", (new_weight,))
         self.conn.commit()
         print("Weight updated successfully!")
-
         self.log_daily_summary()
 
     def _calculate_age(self, birthday):
-        """Calculates age based on birthday."""
-        birth_date = datetime.datetime.strptime(birthday, "%m-%d-%Y").date()
+        bday = datetime.datetime.strptime(birthday, "%m-%d-%Y").date()
         today = datetime.date.today()
-        return today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+        return today.year - bday.year - ((today.month, today.day) < (bday.month, bday.day))
 
     def calculate_daily_calories(self):
         """Determines the number of calories the user should consume daily based on profile and goals."""
@@ -153,7 +85,7 @@ class CalorieCounter:
         # Clamp daily calories to safe limits
         daily_calories = max(min(daily_calories, 4000), 1200)
         return round(daily_calories, 2)
-    
+
     # --- Daily Log Methods ---
 
     def log_daily_summary(self):
@@ -196,8 +128,108 @@ class CalorieCounter:
         self.cursor.execute("SELECT SUM(calories) FROM meal_log WHERE date = ?", (today,))
         result = self.cursor.fetchone()
         return result[0] if result[0] else 0
-    
-    # --- Meal Method ---
+
+    def view_daily_log(self):
+        today = datetime.date.today().isoformat()
+        view_all = input("Would you like to see all past days? (yes/no): ").strip().lower()
+
+        if view_all == "yes":
+            self.cursor.execute("SELECT date, calories_consumed, weight, calories_burned FROM daily_log ORDER BY date")
+        else:
+            self.cursor.execute("SELECT date, calories_consumed, weight, calories_burned FROM daily_log WHERE date = ?", (today,))
+
+        logs = self.cursor.fetchall()
+
+        if logs:
+            print("\nDate         | Calories Consumed | Weight | Calories Burned (lbs)")
+            print("---------------------------------------------------------------")
+            for log in logs:
+                print(f"{log[0]}   | {log[1]}              | {log[2]}              | {log[3]}")
+
+            if view_all == "yes":
+                selected_date = input("\nEnter a date (YYYY-MM-DD) to view meals, or press Enter to return to menu: ").strip()
+                if selected_date:
+                    self.cursor.execute("SELECT id, meal_name, calories FROM meal_log WHERE date = ?", (selected_date,))
+                    meals = self.cursor.fetchall()
+                    print(f"\nMeals for {selected_date}:")
+                    for meal in meals:
+                        print(f"[ID: {meal[0]}] {meal[1]} - {meal[2]} cal")
+
+                    action = input("Would you like to edit or delete a meal? (edit/delete/none): ").strip().lower()
+                    if action == "delete":
+                        meal_id = input("Enter Meal ID to delete: ").strip()
+                        self.cursor.execute("DELETE FROM meal_log WHERE id = ?", (meal_id,))
+                        self.conn.commit()
+                        print("Meal deleted successfully.")
+                    elif action == "edit":
+                        meal_id = input("Enter Meal ID to edit: ").strip()
+                        new_name = input("New meal name: ").strip()
+
+                        new_calories = get_optional_float("New calories (leave blank to keep current): ", None)
+                        new_fat = get_optional_float("New fat (g) (leave blank to keep current): ", None)
+                        new_carbs = get_optional_float("New carbohydrates (g) (leave blank to keep current): ", None)
+                        new_protein = get_optional_float("New protein (g) (leave blank to keep current): ", None)
+
+                        self.cursor.execute("SELECT calories, fat, carbohydrates, protein FROM meal_log WHERE id = ?", (meal_id,))
+                        existing = self.cursor.fetchone()
+                        if not existing:
+                            print("Meal ID not found.")
+                            return
+                        calories, fat, carbs, protein = existing
+
+                        new_calories = new_calories if new_calories is not None else calories
+                        new_fat = new_fat if new_fat is not None else fat
+                        new_carbs = new_carbs if new_carbs is not None else carbs
+                        new_protein = new_protein if new_protein is not None else protein
+
+                        self.cursor.execute(
+                            "UPDATE meal_log SET meal_name = ?, calories = ?, fat = ?, carbohydrates = ?, protein = ? WHERE id = ?",
+                            (new_name, new_calories, new_fat, new_carbs, new_protein, meal_id))
+                        self.conn.commit()
+                        print("Meal updated successfully.")
+            else:
+                print("\nMeals logged today:")
+                self.cursor.execute("SELECT id, meal_name, calories FROM meal_log WHERE date = ?", (today,))
+                meals = self.cursor.fetchall()
+                for meal in meals:
+                    print(f"[ID: {meal[0]}] {meal[1]} - {meal[2]} cal")
+
+                action = input("Would you like to edit or delete a meal? (edit/delete/none): ").strip().lower()
+                if action == "delete":
+                    meal_id = input("Enter Meal ID to delete: ").strip()
+                    self.cursor.execute("DELETE FROM meal_log WHERE id = ?", (meal_id,))
+                    self.conn.commit()
+                    print("Meal deleted successfully.")
+                elif action == "edit":
+                    meal_id = input("Enter Meal ID to edit: ").strip()
+                    new_name = input("New meal name: ").strip()
+
+                    new_calories = get_optional_float("New calories (leave blank to keep current): ", None)
+                    new_fat = get_optional_float("New fat (g) (leave blank to keep current): ", None)
+                    new_carbs = get_optional_float("New carbohydrates (g) (leave blank to keep current): ", None)
+                    new_protein = get_optional_float("New protein (g) (leave blank to keep current): ", None)
+
+                    self.cursor.execute("SELECT calories, fat, carbohydrates, protein FROM meal_log WHERE id = ?", (meal_id,))
+                    existing = self.cursor.fetchone()
+                    if not existing:
+                        print("Meal ID not found.")
+                        return
+                    calories, fat, carbs, protein = existing
+
+                    new_calories = new_calories if new_calories is not None else calories
+                    new_fat = new_fat if new_fat is not None else fat
+                    new_carbs = new_carbs if new_carbs is not None else carbs
+                    new_protein = new_protein if new_protein is not None else protein
+
+                    self.cursor.execute(
+                        "UPDATE meal_log SET meal_name = ?, calories = ?, fat = ?, carbohydrates = ?, protein = ? WHERE id = ?",
+                        (new_name, new_calories, new_fat, new_carbs, new_protein, meal_id))
+                    self.conn.commit()
+                    print("Meal updated successfully.")
+        else:
+            print("No daily logs found.")
+
+    # --- Meal Methods ---
 
     def log_meal(self):
         """Logs a meal, allowing the user to enter manually or search USDA API."""
@@ -258,7 +290,7 @@ class CalorieCounter:
 
         self.log_daily_summary()
 
-    # --- Exercise Function ---
+    # --- Exercise Methods ---
 
     def log_exercise(self):
         today = datetime.date.today().isoformat()
@@ -297,7 +329,7 @@ class CalorieCounter:
                                 (today, self.get_calories_today(), self.get_user_profile()[6], calories_burned))
         self.conn.commit()
 
-    # --- Visualization Functions ---
+    # --- Chart Methods ---
 
     def show_nutrition_pie_chart(self):
         """Saves a pie chart of macronutrient consumption for today."""
@@ -422,7 +454,22 @@ class CalorieCounter:
         plt.savefig(filename, dpi=300)
         print(f"Progress graph saved as {filename}")
 
-    # --- Profile Interaction Functions ---
+    # --- Profile UI ---
+
+    def view_user_profile(self):
+        profile = self.get_user_profile()
+        if not profile:
+            print("No profile found.")
+            return
+        print("\nCurrent Profile:")
+        print(f"Goal Weight: {profile[1]} lbs")
+        print(f"Weekly Weight Change: {profile[2]} lbs/week")
+        print(f"Activity Level: {profile[3]}")
+        print(f"Gender: {profile[4]}")
+        print(f"Birthday: {profile[5]}")
+        print(f"Current Weight: {profile[6]} lbs")
+        inches = round(profile[7] / 2.54)
+        print(f"Height: {inches // 12} ft {inches % 12} in")
 
     def prompt_profile_creation(self):
         goal_type = get_valid_input("Enter your goal (lose/maintain/gain): ", lambda x: x in ["lose", "maintain", "gain"], "Please enter 'lose', 'maintain', or 'gain'.")
@@ -458,7 +505,7 @@ class CalorieCounter:
 
         self.set_user_profile(goal_weight, weekly_weight_loss, activity_level, gender, birthday, weight, height)
         print("User profile created successfully!")
-    
+
     def view_user_profile(self):
         profile = self.get_user_profile()
         if profile:
@@ -549,105 +596,7 @@ class CalorieCounter:
         print(f"• Carbohydrates: {carbs_g}g")
         print(f"• Fat: {fat_g}g")
 
-    def view_daily_log(self):
-        today = datetime.date.today().isoformat()
-        view_all = input("Would you like to see all past days? (yes/no): ").strip().lower()
-
-        if view_all == "yes":
-            self.cursor.execute("SELECT date, calories_consumed, weight, calories_burned FROM daily_log ORDER BY date")
-        else:
-            self.cursor.execute("SELECT date, calories_consumed, weight, calories_burned FROM daily_log WHERE date = ?", (today,))
-
-        logs = self.cursor.fetchall()
-
-        if logs:
-            print("\nDate         | Calories Consumed | Weight | Calories Burned (lbs)")
-            print("---------------------------------------------------------------")
-            for log in logs:
-                print(f"{log[0]}   | {log[1]}              | {log[2]}              | {log[3]}")
-
-            if view_all == "yes":
-                selected_date = input("\nEnter a date (YYYY-MM-DD) to view meals, or press Enter to return to menu: ").strip()
-                if selected_date:
-                    self.cursor.execute("SELECT id, meal_name, calories FROM meal_log WHERE date = ?", (selected_date,))
-                    meals = self.cursor.fetchall()
-                    print(f"\nMeals for {selected_date}:")
-                    for meal in meals:
-                        print(f"[ID: {meal[0]}] {meal[1]} - {meal[2]} cal")
-
-                    action = input("Would you like to edit or delete a meal? (edit/delete/none): ").strip().lower()
-                    if action == "delete":
-                        meal_id = input("Enter Meal ID to delete: ").strip()
-                        self.cursor.execute("DELETE FROM meal_log WHERE id = ?", (meal_id,))
-                        self.conn.commit()
-                        print("Meal deleted successfully.")
-                    elif action == "edit":
-                        meal_id = input("Enter Meal ID to edit: ").strip()
-                        new_name = input("New meal name: ").strip()
-
-                        new_calories = get_optional_float("New calories (leave blank to keep current): ", None)
-                        new_fat = get_optional_float("New fat (g) (leave blank to keep current): ", None)
-                        new_carbs = get_optional_float("New carbohydrates (g) (leave blank to keep current): ", None)
-                        new_protein = get_optional_float("New protein (g) (leave blank to keep current): ", None)
-
-                        self.cursor.execute("SELECT calories, fat, carbohydrates, protein FROM meal_log WHERE id = ?", (meal_id,))
-                        existing = self.cursor.fetchone()
-                        if not existing:
-                            print("Meal ID not found.")
-                            return
-                        calories, fat, carbs, protein = existing
-
-                        new_calories = new_calories if new_calories is not None else calories
-                        new_fat = new_fat if new_fat is not None else fat
-                        new_carbs = new_carbs if new_carbs is not None else carbs
-                        new_protein = new_protein if new_protein is not None else protein
-
-                        self.cursor.execute(
-                            "UPDATE meal_log SET meal_name = ?, calories = ?, fat = ?, carbohydrates = ?, protein = ? WHERE id = ?",
-                            (new_name, new_calories, new_fat, new_carbs, new_protein, meal_id))
-                        self.conn.commit()
-                        print("Meal updated successfully.")
-            else:
-                print("\nMeals logged today:")
-                self.cursor.execute("SELECT id, meal_name, calories FROM meal_log WHERE date = ?", (today,))
-                meals = self.cursor.fetchall()
-                for meal in meals:
-                    print(f"[ID: {meal[0]}] {meal[1]} - {meal[2]} cal")
-
-                action = input("Would you like to edit or delete a meal? (edit/delete/none): ").strip().lower()
-                if action == "delete":
-                    meal_id = input("Enter Meal ID to delete: ").strip()
-                    self.cursor.execute("DELETE FROM meal_log WHERE id = ?", (meal_id,))
-                    self.conn.commit()
-                    print("Meal deleted successfully.")
-                elif action == "edit":
-                    meal_id = input("Enter Meal ID to edit: ").strip()
-                    new_name = input("New meal name: ").strip()
-
-                    new_calories = get_optional_float("New calories (leave blank to keep current): ", None)
-                    new_fat = get_optional_float("New fat (g) (leave blank to keep current): ", None)
-                    new_carbs = get_optional_float("New carbohydrates (g) (leave blank to keep current): ", None)
-                    new_protein = get_optional_float("New protein (g) (leave blank to keep current): ", None)
-
-                    self.cursor.execute("SELECT calories, fat, carbohydrates, protein FROM meal_log WHERE id = ?", (meal_id,))
-                    existing = self.cursor.fetchone()
-                    if not existing:
-                        print("Meal ID not found.")
-                        return
-                    calories, fat, carbs, protein = existing
-
-                    new_calories = new_calories if new_calories is not None else calories
-                    new_fat = new_fat if new_fat is not None else fat
-                    new_carbs = new_carbs if new_carbs is not None else carbs
-                    new_protein = new_protein if new_protein is not None else protein
-
-                    self.cursor.execute(
-                        "UPDATE meal_log SET meal_name = ?, calories = ?, fat = ?, carbohydrates = ?, protein = ? WHERE id = ?",
-                        (new_name, new_calories, new_fat, new_carbs, new_protein, meal_id))
-                    self.conn.commit()
-                    print("Meal updated successfully.")
-        else:
-            print("No daily logs found.")
+    # --- CLI Menu ---
 
     def run_cli(self):
         self.log_daily_summary()
@@ -725,7 +674,3 @@ class CalorieCounter:
 
             else:
                 print("Invalid choice. Please try again.")
-
-if __name__ == "__main__":
-    calorie_tracker = CalorieCounter()
-    calorie_tracker.run_cli()

@@ -657,7 +657,7 @@ class CalorieCounter:
         self.log_daily_summary()
         while True:
             print("\nCalorie Counter Menu")
-            print("1. Set New Profile (overwrites current)")
+            print("1. Set New Profile")
             print("2. View Personalized Health Plan")
             print("3. View Current Profile")
             print("4. Edit Profile")
@@ -676,7 +676,7 @@ class CalorieCounter:
             choice = get_valid_input("Enter choice: ", lambda x: x.isdigit() and 1 <= int(x) <= 15, "Please enter a number between 1 and 15.")
 
             if choice == "1":
-                print("WARNING: This will overwrite your existing profile.")
+                print("WARNING: If you already have a profile doing this will overwrite your existing profile.")
                 confirm = input("Are you sure? (yes/no): ").strip().lower()
                 if confirm != "yes":
                     print("Operation cancelled.")

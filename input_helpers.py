@@ -1,5 +1,3 @@
-import datetime
-
 def get_valid_input(prompt, valid_fn, error_msg):
     while True:
         val = input(prompt).strip()
@@ -27,10 +25,3 @@ def get_optional_float(prompt, default):
         return float(val) if val else default
     except:
         return default
-
-def is_valid_date(date_str):
-    try:
-        datetime.strptime(date_str, "%m-%d-%Y")
-        return True
-    except ValueError:
-        return False

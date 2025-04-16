@@ -10,7 +10,6 @@ from input_helpers import (
     get_valid_float,
     get_valid_int,
     get_optional_float,
-    is_valid_date
 )
 
 from db import initialize_database
@@ -275,10 +274,10 @@ class CalorieCounter:
         else:
             # Manual meal entry
             meal_name = input("Enter meal name: ").strip()
-            calories = int(input("Enter calories: ").strip())
-            fat = float(input("Enter fat (g): ").strip())
-            carbohydrates = float(input("Enter carbohydrates (g): ").strip())
-            protein = float(input("Enter protein (g): ").strip())
+            calories = get_valid_float("Enter calories: ")
+            fat = get_valid_float("Enter fat (g): ")
+            carbohydrates = get_valid_float("Enter carbohydrates (g): ")
+            protein = get_valid_float("Enter protein (g): ")
 
         # Save meal to database
         self.cursor.execute('''INSERT INTO meal_log (date, meal_name, calories, fat, carbohydrates, protein)
@@ -545,8 +544,12 @@ class CalorieCounter:
         gender = input(f"Gender [{profile[4]}]: ").strip() or profile[4]
         birthday = input(f"Birthday (MM-DD-YYYY) [{profile[5]}]: ").strip() or profile[5]
         weight = get_optional("Current Weight (lbs)", profile[6], float)
-        height_ft = get_valid_int("Enter height (feet): ")
-        height_in = get_valid_int("Enter additional inches: ")
+        total_inches = round(profile[7] / 2.54)
+        current_ft = total_inches // 12
+        current_in = total_inches % 12
+
+        height_ft = get_optional("Enter height (feet)", current_ft, int)
+        height_in = get_optional("Enter additional inches", current_in, int)
         height = (height_ft * 12 + height_in) * 2.54
 
         self.set_user_profile(goal_weight, weekly_weight_loss, activity_level, gender, birthday, weight, height)

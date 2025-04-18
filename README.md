@@ -102,6 +102,7 @@ Local-only project. No user credentials or password hashing required.
 - Python 3.8+
 - `matplotlib`
 - `requests`
+- `python-dotenv` (for loading API keys from `.env`)
 
 Install dependencies:
 
@@ -110,6 +111,8 @@ pip install matplotlib requests
 ```
 
 ### Running the App
+
+This project uses the `python-dotenv` library to securely load your USDA API key from a `.env` file. Make sure to install the package and define your API key as shown in the instructions below.
 
 ```bash
 python main.py
@@ -173,8 +176,6 @@ To use the meal logging feature with automatic nutrition lookup, you'll need you
    ```
    USDA_API_KEY=your_api_key_here
    ```
-
-5. Make sure your `.env` file is **not committed** to version control (it's already in `.gitignore`).
 
 ---
 

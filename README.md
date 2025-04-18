@@ -6,7 +6,7 @@ A personalized health management system to help users track their meals, monitor
 
 ## Motivation
 
-Making a change in your health is hard. I built this application to make that process easier : by providing a realistic daily plan and transparent tracking tools so users always know where they stand.
+Making a change in your health is hard. I built this application to make that process easier, by providing a realistic daily plan and transparent tracking tools so users always know where they stand.
 
 ---
 

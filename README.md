@@ -100,9 +100,10 @@ Local-only project. No user credentials or password hashing required.
 
 ### Requirements
 - Python 3.8+
+- `sqlite3` (included with standard Python)
 - `matplotlib`
 - `requests`
-- `python-dotenv` (for loading API keys from `.env`)
+- `python-dotenv`
 
 Install dependencies:
 

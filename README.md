@@ -157,13 +157,6 @@ Spring 2025
 
 ---
 
-## License
-
-MIT License (or specify your own)
-
-
----
-
 ## Getting a USDA API Key
 
 To use the meal logging feature with automatic nutrition lookup, you'll need your own USDA API key.
@@ -190,6 +183,8 @@ To use the meal logging feature with automatic nutrition lookup, you'll need you
 ### What is the purpose of a calorie counter?
 
 A calorie counter helps users track how many calories they consume and burn each day. This supports goals like weight loss, maintenance, or muscle gain by giving insight into your energy balance.
+
+If your goal is **weight loss**, the most important principle is to maintain a **calorie deficit** — meaning you consume fewer calories than you burn. This application helps you stay on track by calculating a realistic daily calorie target based on your profile and showing you how your intake compares to that target throughout the day.
 
 ---
 

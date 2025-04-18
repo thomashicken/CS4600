@@ -107,7 +107,7 @@ Local-only project. No user credentials or password hashing required.
 Install dependencies:
 
 ```bash
-pip install matplotlib requests
+pip install matplotlib requests python-dotenv
 ```
 
 ### Running the App

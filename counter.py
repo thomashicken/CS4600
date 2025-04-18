@@ -331,7 +331,7 @@ class CalorieCounter:
     # --- Chart Methods ---
 
     def show_nutrition_pie_chart(self):
-        """Saves a pie chart of macronutrient consumption for today."""
+        """Saves a pie chart of macronutrient consumption for today with a gram-based summary box."""
         today = datetime.date.today().isoformat()
         
         # Get total daily consumption
@@ -355,19 +355,41 @@ class CalorieCounter:
         colors = ['#f94144', '#90be6d', '#577590']
         explode = (0.05, 0.05, 0.05)
 
-        # Plot
-        plt.figure(figsize=(6,6))
+        plt.figure(figsize=(8, 6))  # Slightly wider to fit summary
+
+        # Shift pie chart a bit left to make room for summary
+        ax = plt.gca()
+        ax.set_position([0.1, 0.1, 0.8, 0.8])  # [left, bottom, width, height]
+
+        # Draw pie
         plt.pie(
             sizes, labels=labels, autopct='%1.1f%%', startangle=140, 
             colors=colors, explode=explode,
             wedgeprops={'edgecolor': 'white', 'linewidth': 2},
             textprops={'fontsize': 12, 'weight': 'bold'}
         )
-        plt.axis('equal')  # Equal aspect ratio ensures a circular pie chart
+        plt.axis('equal')
         plt.suptitle("Macronutrient Breakdown", fontsize=16, fontweight="bold")
-        plt.text(-1.3, -1.3, f"Date: {today}", fontsize=10, ha='left')
 
-        # Save the chart
+        # Date
+        plt.text(-1.75, -1.3, f"Date: {today}", fontsize=10, ha='left')
+
+        # Summary box in grams
+        macro_summary = (
+            f"Fat:           {fat:.1f} g\n"
+            f"Carbohydrates: {carbs:.1f} g\n"
+            f"Protein:       {protein:.1f} g"
+        )
+
+        # Styled summary box in bottom right
+        plt.gcf().text(0.95, 0.9, macro_summary,
+                    fontsize=10,
+                    ha='right',
+                    va='top',
+                    fontweight='bold',
+                    bbox=dict(boxstyle="round,pad=0.5", facecolor="#f1f1f1", edgecolor="#888"))
+
+        # Final save
         filename = f"nutrition_breakdown_{today}.png"
         plt.savefig(filename, dpi=300)
         print(f"Nutrition breakdown saved as {filename}")
@@ -409,10 +431,7 @@ class CalorieCounter:
         # Widen figure to make room for text
         plt.figure(figsize=(11, 8))
 
-        # Shift the pie chart left
-        ax = plt.gca()
-        ax.set_position([0.15, 0.1, 0.7, 0.8])  # [left, bottom, width, height]
-
+        # Draw pie
         wedges, texts, autotexts = plt.pie(
             sizes,
             labels=labels,
@@ -428,7 +447,7 @@ class CalorieCounter:
         plt.suptitle("Calorie Intake vs. Budget", fontsize=16, fontweight="bold")
 
         # Date bottom left
-        plt.text(-2, -1.375, f"Date: {today}", fontsize=10, ha='left')
+        plt.text(-1.75, -1.375, f"Date: {today}", fontsize=10, ha='left')
 
         # Summary box values
         net_calories = calories_consumed - calories_burned
@@ -440,16 +459,16 @@ class CalorieCounter:
         )
 
         # Summary box on bottom right, inside visible area
-        plt.text(0.95, -0.6, styled_summary,
-            fontsize=10,
-            ha='left',
-            va='top',
-            fontweight='bold',
-            bbox=dict(boxstyle="round,pad=0.5", facecolor="#f1f1f1", edgecolor="#888"))
+        plt.gcf().text(0.95, 0.05, styled_summary,
+               fontsize=10,
+               ha='right',
+               va='bottom',
+               fontweight='bold',
+               bbox=dict(boxstyle="round,pad=0.5", facecolor="#f1f1f1", edgecolor="#888"))
 
         # Remove tight_layout (it's what's clipping it!)
         # plt.tight_layout()
-        plt.subplots_adjust(right=0.95)  # Give breathing room
+        plt.subplots_adjust(left=0.05, right=0.95, top=0.9, bottom=0.1)
 
         filename = f"calorie_intake_{today}.png"
         plt.savefig(filename, dpi=300)

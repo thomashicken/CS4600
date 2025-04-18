@@ -156,3 +156,60 @@ Senior Project, CS4600
 Spring 2025
 
 ---
+
+## License
+
+MIT License (or specify your own)
+
+
+---
+
+## Getting a USDA API Key
+
+To use the meal logging feature with automatic nutrition lookup, you'll need your own USDA API key.
+
+### Steps:
+1. Go to the USDA API signup page:  
+   https://fdc.nal.usda.gov/api-key-signup.html
+
+2. Fill out the form and submit it.
+
+3. Once approved, you'll receive an API key via email.
+
+4. Create a `.env` file in the root of the project and add:
+   ```
+   USDA_API_KEY=your_api_key_here
+   ```
+
+5. Make sure your `.env` file is **not committed** to version control (it's already in `.gitignore`).
+
+---
+
+## FAQ
+
+### What is the purpose of a calorie counter?
+
+A calorie counter helps users track how many calories they consume and burn each day. This supports goals like weight loss, maintenance, or muscle gain by giving insight into your energy balance.
+
+---
+
+### What are macronutrients and why do they matter?
+
+Macronutrients — **protein**, **carbohydrates**, and **fat** — are the main sources of energy in your diet. Each plays a distinct role:
+- **Protein** supports muscle repair and growth.
+- **Carbohydrates** are the body's main fuel source.
+- **Fat** is essential for hormones, brain health, and long-term energy.
+
+This app visualizes your macronutrient breakdown so you can better understand the quality of your calorie intake.
+
+---
+
+### How does a calorie counter work?
+
+This calorie counter uses your personal details (weight, height, gender, age, activity level, and goals) to:
+- Calculate a personalized daily calorie budget
+- Track meals and exercises
+- Update your weight and progress over time
+- Visualize trends and nutrient distribution with graphs
+
+Meals can be logged manually or fetched from the USDA FoodData Central for more accurate nutrition information.

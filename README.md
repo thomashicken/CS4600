@@ -1,4 +1,4 @@
-# Calorie Counter: by Thomas Hicken
+# Calorie Counter – by Thomas Hicken
 
 A personalized health management system to help users track their meals, monitor progress, and build realistic nutrition plans based on their goals.
 

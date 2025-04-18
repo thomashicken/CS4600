@@ -3,7 +3,7 @@ import json
 
 api_key = '0bxYWP3iH2bW7psubPM6SkbxOL7p4fdynk66Np6b'
 
-# Define only the nutrients we care about
+# A mapping from USDA nutrient names to simplified display names
 important_nutrients = {
     "Energy": "Calories",
     "Protein": "Protein",
@@ -12,30 +12,36 @@ important_nutrients = {
 }
 
 def get_fdc_id(food_name, api_key):
+    # Constructs the USDA search API endpoint
     url = f"https://api.nal.usda.gov/fdc/v1/search?api_key={api_key}"
+     # JSON body for the POST request
     data = {"generalSearchInput": food_name}
+     # Sends a POST request to search for the food
     response = requests.post(url, headers={"Content-Type": "application/json"}, json=data)
+    # Parses the JSON response
     parsed = response.json()
 
+    # If there's an error in the response, print it and return None
     if 'error' in parsed:
         print(f"API Error: {parsed['error'].get('message', 'Unknown error')}")
         return None, None, None
 
+    # If no foods are returned, notify the user and return None
     if 'foods' not in parsed or not parsed['foods']:
         print(f"No results found for '{food_name}'. Try a more specific name (e.g., 'red apple').")
         return None, None, None
 
-    # Display search results
+    # Display the top 20 search results
     print(f"\nSearch results for '{food_name}':")
     choices = []
     for i, food in enumerate(parsed['foods'][:20]):  # Show top 20 results
-        brand = food.get('brandOwner', 'Generic/Unknown')
-        description = food['description']
-        fdc_id = food['fdcId']
+        brand = food.get('brandOwner', 'Generic/Unknown')   # Brand if available
+        description = food['description']                   # Food description
+        fdc_id = food['fdcId']                              # Food Data Central ID
         print(f"{i+1}. {description} (Brand: {brand}, FDC ID: {fdc_id})")
         choices.append(food)
 
-    # Let the user pick one
+    # Ask the user to select one result
     while True:
         try:
             choice = int(input("\nEnter the number of the food you want to log (1-20): ").strip())
@@ -46,6 +52,7 @@ def get_fdc_id(food_name, api_key):
         except ValueError:
             print("Invalid input. Please enter a number.")
 
+    # Extract details from the chosen food
     chosen_food = choices[choice - 1]
     fdc_id = chosen_food['fdcId']
     chosen_description = chosen_food['description']
@@ -53,15 +60,16 @@ def get_fdc_id(food_name, api_key):
 
     print(f"\nChosen food: {chosen_description} (Brand: {chosen_brand}, FDC ID: {fdc_id})")
 
+    # Return the selected food's ID, description, and brand
     return fdc_id, chosen_description, chosen_brand
 
 def get_nutrition_data(fdc_id, api_key):
-    import requests
-
+     # Builds URL for detailed nutrient data by FDC ID
     url = f"https://api.nal.usda.gov/fdc/v1/{fdc_id}?api_key={api_key}"
-    response = requests.get(url)
-    parsed = response.json()
+    response = requests.get(url) # Send GET request
+    parsed = response.json()     # Parse JSON response
 
+    # Nutrients we're interested in, for consistent display
     important_nutrients = {
         "Energy": "Calories",
         "Protein": "Protein",
@@ -69,9 +77,9 @@ def get_nutrition_data(fdc_id, api_key):
         "Carbohydrate, by difference": "Carbohydrates"
     }
 
-    nutrition_data = {}
+    nutrition_data = {} # Dictionary to store parsed nutrition info
 
-    # Step 1: Try to use foodNutrients
+    # STEP 1: Use 'foodNutrients' if available
     if 'foodNutrients' in parsed:
         for nutrient in parsed['foodNutrients']:
             name = nutrient.get('nutrient', {}).get('name', 'Unknown Nutrient')
@@ -80,18 +88,18 @@ def get_nutrition_data(fdc_id, api_key):
                 unit = nutrient.get('nutrient', {}).get('unitName', '')
                 amount = nutrient.get('amount', 0)
 
-                # Only include kcal values for Energy
+                # Ignore non-kcal values for Energy
                 if name == "Energy" and unit != "kcal":
                     continue
 
-                # Sanity check
+                # Skip absurd calorie values
                 if display_name == "Calories" and amount > 1500:
                     print(f"Skipping unreasonable calorie value: {amount} kcal")
                     continue
 
                 nutrition_data[display_name] = f"{amount} {unit}"
 
-    # Step 2: If empty, try labelNutrients as fallback
+    # STEP 2: Fallback to 'labelNutrients' if 'foodNutrients' was empty
     if not nutrition_data:
         label = parsed.get("labelNutrients", {})
         for key, display_name in [("calories", "Calories"),
@@ -107,13 +115,16 @@ def get_nutrition_data(fdc_id, api_key):
                 unit = "kcal" if key == "calories" else "g"
                 nutrition_data[display_name] = f"{amount} {unit}"
 
+    # STEP 3: If we still don't have nutrition data, return None
     if not nutrition_data:
         print(f"No nutrition data found for FDC ID {fdc_id}.")
         return None, None, None
 
-    # Step 3: Estimate a realistic portion size
+    # Estimate a realistic portion size from foodPortions
     portions = parsed.get("foodPortions", [])
     full_item_grams = None
+
+    # Try to find a named portion (sandwich, bottle, etc.)
     for portion in portions:
         if not isinstance(portion, dict):
             continue  # Skip if portion isn't a dictionary
@@ -123,7 +134,7 @@ def get_nutrition_data(fdc_id, api_key):
             full_item_grams = portion.get("gramWeight")
             break
 
-    # Fallback: use first portion > 50g
+     # If no match above, fallback to any portion > 50g
     if not full_item_grams:
         for portion in portions:
             if isinstance(portion, dict):
@@ -132,14 +143,15 @@ def get_nutrition_data(fdc_id, api_key):
                     full_item_grams = grams
                     break
 
-    # Step 4: Scale nutrient values
+     # STEP 4: Scale nutrients based on portion size
     default_grams = 100
     scaling_factor = full_item_grams / default_grams if full_item_grams else 1.0
 
-    # Optional debug
+    # Inform the user if scaling was applied
     if scaling_factor != 1.0:
         print(f"Scaling nutrients by x{scaling_factor:.2f} (based on {full_item_grams}g)")
 
+    # Adjust each nutrient value by the scaling factor
     for key in nutrition_data:
         value = nutrition_data[key]
         try:
@@ -149,4 +161,5 @@ def get_nutrition_data(fdc_id, api_key):
         except Exception:
             print(f"Could not parse value for {key}: {value}")
 
+    # Return final nutrition dictionary (and 2 unused placeholders)
     return nutrition_data, None, None

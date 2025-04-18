@@ -17,3 +17,6 @@ __pycache__/
 
 # Ignore bash files
 *.sh
+
+# Ignore env
+.env

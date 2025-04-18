@@ -2,6 +2,8 @@ import datetime
 import csv
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+from dotenv import load_dotenv
+load_dotenv()
 
 from food_data import get_fdc_id, get_nutrition_data
 from constants import EXERCISE_CALORIES_PER_MIN

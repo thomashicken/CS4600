@@ -1,7 +1,8 @@
 import requests
 import json
+import os
 
-api_key = '0bxYWP3iH2bW7psubPM6SkbxOL7p4fdynk66Np6b'
+api_key = os.getenv("USDA_API_KEY")
 
 # A mapping from USDA nutrient names to simplified display names
 important_nutrients = {

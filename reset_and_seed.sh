@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Resetting and seeding database with realistic data (7 months)..."
+# echo "Resetting and seeding database with realistic data (12 months)..."
 
 # Remove old files
 rm -f calorie_tracker.db daily_log_export.csv *.png
@@ -136,7 +136,7 @@ for i in range(days):
 
 conn.commit()
 conn.close()
-print("Database seeded with 210 days of realistic weight loss progress.")
+# print("Database seeded with 365 days of realistic weight loss progress.")
 EOF
 
 # Simulate CLI interactions including exercise logging

@@ -20,8 +20,11 @@ def get_valid_int(prompt):
             print("Invalid number. Please enter a valid integer.")
 
 def get_optional_float(prompt, default):
-    val = input(prompt).strip()
-    try:
-        return float(val) if val else default
-    except:
-        return default
+    while True:
+        val = input(prompt).strip()
+        if not val:
+            return default  # User pressed Enter, use default
+        try:
+            return float(val)
+        except ValueError:
+            print("Invalid input. Please enter a valid number.")

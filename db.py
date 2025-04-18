@@ -1,6 +1,6 @@
 import sqlite3
 
-def initialize_database(db_name="calorie_tracker.db"):
+def initialize_database(db_name="counter.db"):
     conn = sqlite3.connect(db_name)
     cursor = conn.cursor()
 

@@ -11,7 +11,7 @@ import sqlite3
 import datetime
 import random
 
-conn = sqlite3.connect("calorie_tracker.db")
+conn = sqlite3.connect("counter.db")
 cursor = conn.cursor()
 
 # Config

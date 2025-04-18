@@ -15,7 +15,7 @@ from input_helpers import (
 from db import initialize_database
 
 class CalorieCounter:
-    def __init__(self, db_name="calorie_tracker.db"):
+    def __init__(self, db_name="counter.db"):
         self.conn, self.cursor = initialize_database(db_name)
 
     # --- Profile Methods ---
@@ -140,7 +140,7 @@ class CalorieCounter:
         logs = self.cursor.fetchall()
 
         if logs:
-            print("\nDate         | Calories Consumed | Weight | Calories Burned (lbs)")
+            print("\nDate         | Calories Consumed | Weight | Calories Burned (kcal)")
             print("---------------------------------------------------------------")
             for log in logs:
                 print(f"{log[0]}   | {log[1]}              | {log[2]}              | {log[3]}")
@@ -373,24 +373,46 @@ class CalorieCounter:
         print(f"Nutrition breakdown saved as {filename}")
 
     def show_calorie_intake_pie_chart(self):
-        """Saves a pie chart comparing consumed calories to daily recommended intake."""
+        """Saves a pie chart comparing consumed calories, optional burned calories, and remaining budget."""
         today = datetime.date.today().isoformat()
         calories_consumed = self.get_calories_today()
         recommended_calories = self.calculate_daily_calories() or 2000
 
-        budget_calories = max(recommended_calories - calories_consumed, 0)
-        budget_calories = round(budget_calories, 1)
+        # Fetch burned calories
+        self.cursor.execute("SELECT calories_burned FROM daily_log WHERE date = ?", (today,))
+        row = self.cursor.fetchone()
+        calories_burned = row[0] if row and row[0] else 0
 
-        labels = ['Calories Consumed', 'Calories Remaining']
-        sizes = [calories_consumed, budget_calories]
-        colors = ['#ff6b6b', '#4dabf7']
-        explode = (0.05, 0.05)
+        # Labels and slices
+        labels = ['Calories Consumed']
+        sizes = [calories_consumed]
+        colors = ['#ff6b6b']
+        explode = [0.05]
+
+        remaining = max(recommended_calories - calories_consumed, 0)
+
+        if calories_burned > 0:
+            labels.append('Calories Burned')
+            sizes.append(calories_burned)
+            colors.append('#90be6d')
+            explode.append(0.05)
+
+        labels.append('Calories Remaining')
+        sizes.append(remaining)
+        colors.append('#4dabf7')
+        explode.append(0.05)
 
         def format_calories(pct, all_vals):
             absolute = int(round(pct / 100 * sum(all_vals)))
             return f'{absolute} cal'
 
-        plt.figure(figsize=(8, 8))
+        # Widen figure to make room for text
+        plt.figure(figsize=(11, 8))
+
+        # Shift the pie chart left
+        ax = plt.gca()
+        ax.set_position([0.15, 0.1, 0.7, 0.8])  # [left, bottom, width, height]
+
         wedges, texts, autotexts = plt.pie(
             sizes,
             labels=labels,
@@ -399,14 +421,36 @@ class CalorieCounter:
             colors=colors,
             explode=explode,
             wedgeprops={'edgecolor': 'white', 'linewidth': 2},
-            textprops={'fontsize': 10, 'weight': 'bold'}  # smaller label font
+            textprops={'fontsize': 10, 'weight': 'bold'}
         )
 
         plt.axis('equal')
         plt.suptitle("Calorie Intake vs. Budget", fontsize=16, fontweight="bold")
-        plt.text(-1.3, -1.3, f"Date: {today}", fontsize=10, ha='left')
 
-        plt.tight_layout()
+        # Date bottom left
+        plt.text(-2, -1.375, f"Date: {today}", fontsize=10, ha='left')
+
+        # Summary box values
+        net_calories = calories_consumed - calories_burned
+        styled_summary = (
+            f"Recommended: {recommended_calories:.0f} cal\n"
+            f"Consumed:    {calories_consumed:.0f} cal\n"
+            f"Burned:      {calories_burned:.0f} cal\n"
+            f"Net Intake:  {net_calories:.0f} cal"
+        )
+
+        # Summary box on bottom right, inside visible area
+        plt.text(0.95, -0.6, styled_summary,
+            fontsize=10,
+            ha='left',
+            va='top',
+            fontweight='bold',
+            bbox=dict(boxstyle="round,pad=0.5", facecolor="#f1f1f1", edgecolor="#888"))
+
+        # Remove tight_layout (it's what's clipping it!)
+        # plt.tight_layout()
+        plt.subplots_adjust(right=0.95)  # Give breathing room
+
         filename = f"calorie_intake_{today}.png"
         plt.savefig(filename, dpi=300)
         print(f"Calorie intake chart saved as {filename}")

@@ -1,4 +1,4 @@
-# Calorie Counter – by Thomas Hicken
+# Calorie Counter: by Thomas Hicken
 
 A personalized health management system to help users track their meals, monitor progress, and build realistic nutrition plans based on their goals.
 
@@ -6,7 +6,7 @@ A personalized health management system to help users track their meals, monitor
 
 ## Motivation
 
-Making a change in your health is hard. I built this application to make that process easier — by providing a realistic daily plan and transparent tracking tools so users always know where they stand.
+Making a change in your health is hard. I built this application to make that process easier : by providing a realistic daily plan and transparent tracking tools so users always know where they stand.
 
 ---
 
@@ -86,7 +86,7 @@ CREATE TABLE daily_log (
 
 ## REST Endpoints
 
-Not applicable — this is a CLI-based tool. Web/Mobile endpoints may be implemented in future versions.
+Not applicable, this is a CLI-based tool. Web/Mobile endpoints may be implemented in future versions.
 
 ---
 
@@ -102,8 +102,6 @@ Local-only project. No user credentials or password hashing required.
 - Python 3.8+
 - `matplotlib`
 - `requests`
-- `python-dotenv` (for loading API keys from `.env`)
-
 
 Install dependencies:
 
@@ -112,9 +110,6 @@ pip install matplotlib requests
 ```
 
 ### Running the App
-
-This project uses the `python-dotenv` library to securely load your USDA API key from a `.env` file. Make sure to install the package and define your API key as shown in the instructions below.
-
 
 ```bash
 python main.py
@@ -179,6 +174,8 @@ To use the meal logging feature with automatic nutrition lookup, you'll need you
    USDA_API_KEY=your_api_key_here
    ```
 
+5. Make sure your `.env` file is **not committed** to version control (it's already in `.gitignore`).
+
 ---
 
 ## FAQ
@@ -187,13 +184,13 @@ To use the meal logging feature with automatic nutrition lookup, you'll need you
 
 A calorie counter helps users track how many calories they consume and burn each day. This supports goals like weight loss, maintenance, or muscle gain by giving insight into your energy balance.
 
-If your goal is **weight loss**, the most important principle is to maintain a **calorie deficit** — meaning you consume fewer calories than you burn. This application helps you stay on track by calculating a realistic daily calorie target based on your profile and showing you how your intake compares to that target throughout the day.
+If your goal is **weight loss**, the most important principle is to maintain a **calorie deficit**, meaning you consume fewer calories than you burn. This application helps you stay on track by calculating a realistic daily calorie target based on your profile and showing you how your intake compares to that target throughout the day.
 
 ---
 
 ### What are macronutrients and why do they matter?
 
-Macronutrients — **protein**, **carbohydrates**, and **fat** — are the main sources of energy in your diet. Each plays a distinct role:
+Macronutrients, **protein**, **carbohydrates**, and **fat**, are the main sources of energy in your diet. Each plays a distinct role:
 - **Protein** supports muscle repair and growth.
 - **Carbohydrates** are the body's main fuel source.
 - **Fat** is essential for hormones, brain health, and long-term energy.

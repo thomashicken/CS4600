@@ -538,7 +538,7 @@ class CalorieCounter:
     def prompt_profile_creation(self):
         goal_type = get_valid_input("Enter your goal (lose/maintain/gain): ", lambda x: x in ["lose", "maintain", "gain"], "Please enter 'lose', 'maintain', or 'gain'.")
 
-        print("\nChoose your activity level:")
+        print("Choose your activity level:")
         print("• Not Active        - Mostly sedentary, with minimal movement (e.g. watching TV, reading).")
         print("• Somewhat Active   - Modest daily movement typical of an office worker, homemaker, or shopkeeper.")
         print("• Highly Active     - Increased daily movement typical of workers in light industry, trades, or agriculture.")
